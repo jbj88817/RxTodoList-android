@@ -13,9 +13,13 @@ import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
 
+import rx.Observable;
+import rx.subjects.ReplaySubject;
+
 public class TodoList {
 
-    private TodoListener listener;
+    ReplaySubject<TodoList> notifier = ReplaySubject.create();
+
     private List<Todo> todoList;
 
     public TodoList() {
@@ -25,10 +29,6 @@ public class TodoList {
     public TodoList(String json) {
         this();
         readJson(json);
-    }
-
-    public void setListener(TodoListener listener) {
-        this.listener = listener;
     }
 
     public int size() {
@@ -41,25 +41,19 @@ public class TodoList {
 
     public void add(Todo t) {
         todoList.add(t);
-        if (listener != null) {
-            listener.onTodoListChanged(this);
-        }
+        notifier.onNext(this);
     }
 
     public void remove(Todo t) {
         todoList.remove(t);
-        if (listener != null) {
-            listener.onTodoListChanged(this);
-        }
+        notifier.onNext(this);
     }
 
     public void toggle(Todo t) {
         Todo todo = todoList.get(todoList.indexOf(t));
         boolean curVal = todo.isCompleted;
         todo.isCompleted = !curVal;
-        if (listener != null) {
-            listener.onTodoListChanged(this);
-        }
+        notifier.onNext(this);
     }
 
     private void readJson(String json) {
@@ -127,5 +121,9 @@ public class TodoList {
         String json = new String(out.toByteArray());
 
         return json;
+    }
+
+    public Observable<TodoList> asObservable() {
+        return notifier;
     }
 }
