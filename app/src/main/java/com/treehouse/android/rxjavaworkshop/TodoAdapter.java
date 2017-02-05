@@ -8,15 +8,18 @@ import android.view.ViewGroup;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 
+import java.util.Collections;
+import java.util.List;
+
 import rx.functions.Action1;
 
-public class TodoAdapter extends RecyclerView.Adapter<TodoAdapter.TodoHolder> implements Action1<TodoList> {
+public class TodoAdapter extends RecyclerView.Adapter<TodoAdapter.TodoHolder> implements Action1<List<Todo>> {
 
     LayoutInflater inflater;
 
     TodoCompletedChangeListener todoChangeListener;
 
-    TodoList data = new TodoList();
+    List<Todo> data = Collections.emptyList();
 
     public TodoAdapter(Activity activity, TodoCompletedChangeListener listener) {
         inflater = LayoutInflater.from(activity);
@@ -53,7 +56,7 @@ public class TodoAdapter extends RecyclerView.Adapter<TodoAdapter.TodoHolder> im
 
 
     @Override
-    public void call(TodoList todoList) {
+    public void call(List<Todo> todoList) {
         data = todoList;
         notifyDataSetChanged();
     }

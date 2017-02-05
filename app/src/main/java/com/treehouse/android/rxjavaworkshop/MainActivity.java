@@ -8,17 +8,20 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.text.TextUtils;
-import android.view.View;
 import android.view.inputmethod.InputMethodManager;
-import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.Spinner;
 
 import com.jakewharton.rxbinding.view.RxView;
+import com.jakewharton.rxbinding.widget.RxAdapterView;
 
+import java.util.List;
+
+import rx.Observable;
 import rx.functions.Action1;
 import rx.functions.Func1;
+import rx.functions.Func2;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -34,7 +37,6 @@ public class MainActivity extends AppCompatActivity {
     TodoAdapter adapter;
 
     TodoList list;
-    TodoListFilter filter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,9 +50,6 @@ public class MainActivity extends AppCompatActivity {
             list = new TodoList(getSharedPreferences("data", Context.MODE_PRIVATE).getString(LIST, null));
         }
 
-        // setup the Filter which allows us to get the data we want to display
-        filter = new TodoListFilter(list);
-
         // setup the Adapter, this contains a callback when an item is checked/unchecked
         adapter = new TodoAdapter(this, new TodoCompletedChangeListener() {
             @Override
@@ -58,10 +57,6 @@ public class MainActivity extends AppCompatActivity {
                 list.toggle(todo);
             }
         });
-
-        list.asObservable().subscribe(adapter);
-        list.asObservable().subscribe(filter);
-
 
         // setup the list with the adapter
         recyclerView = (RecyclerView) findViewById(R.id.recyclerview);
@@ -104,17 +99,24 @@ public class MainActivity extends AppCompatActivity {
         // setup the filter in the toolbar
         spinner = (Spinner) toolbar.findViewById(R.id.spinner);
         spinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, new String[]{"All", "Incomplete", "Completed"}));
-        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                filter.setFilterMode(position);
-            }
 
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-                filter.setFilterMode(TodoListFilter.ALL);
-            }
-        });
+        Observable.combineLatest(
+                RxAdapterView.itemSelections(spinner).skip(1),
+                list.asObservable(),
+                new Func2<Integer, TodoList, List<Todo>>() {
+                    @Override
+                    public List<Todo> call(Integer integer, TodoList todoList) {
+                        switch (integer) {
+                            case FilterPositions.INCOMPLETE:
+                                return list.getIncomplete();
+                            case FilterPositions.COMPLETE:
+                                return list.getComplete();
+                            default:
+                                return list.getAll();
+                        }
+                    }
+                }
+        ).subscribe(adapter);
 
     }
 

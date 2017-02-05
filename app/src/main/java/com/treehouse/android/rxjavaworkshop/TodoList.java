@@ -56,6 +56,30 @@ public class TodoList {
         notifier.onNext(this);
     }
 
+    public List<Todo> getAll() {
+        return todoList;
+    }
+
+    public List<Todo> getIncomplete() {
+        ArrayList<Todo> incomplete = new ArrayList<>();
+        for (Todo todo : todoList) {
+            if (!todo.isCompleted) {
+                incomplete.add(todo);
+            }
+        }
+        return incomplete;
+    }
+
+    public List<Todo> getComplete() {
+        ArrayList<Todo> complete = new ArrayList<>();
+        for (Todo todo : todoList) {
+            if (todo.isCompleted) {
+                complete.add(todo);
+            }
+        }
+        return complete;
+    }
+
     private void readJson(String json) {
 
         if (json == null || TextUtils.isEmpty(json.trim())) {
