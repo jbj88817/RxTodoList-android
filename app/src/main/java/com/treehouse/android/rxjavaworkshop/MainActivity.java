@@ -15,6 +15,11 @@ import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.Spinner;
 
+import com.jakewharton.rxbinding.view.RxView;
+
+import rx.functions.Action1;
+import rx.functions.Func1;
+
 public class MainActivity extends AppCompatActivity {
 
     private static final String LIST = "list";
@@ -66,24 +71,31 @@ public class MainActivity extends AppCompatActivity {
         // setup adding new items to the list
         addInput = (EditText) findViewById(R.id.add_todo_input);
         findViewById(R.id.add_todo_container).requestFocus(); // ensures the edittext isn't focused when entering the Activity
-        findViewById(R.id.btn_add_todo).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String item = addInput.getText().toString();
+        RxView.clicks(findViewById(R.id.btn_add_todo))
+                .map(new Func1<Void, String>() {
+                    @Override
+                    public String call(Void aVoid) {
+                        return addInput.getText().toString();
+                    }
+                })
+                .filter(new Func1<String, Boolean>() {
+                    @Override
+                    public Boolean call(String s) {
+                        return !TextUtils.isEmpty(s.trim());
+                    }
+                })
+                .subscribe(new Action1<String>() {
+                    @Override
+                    public void call(String s) {
+                        // update our list
+                        list.add(new Todo(s, false));
 
-                // ensure we don't add empty items
-                if (!TextUtils.isEmpty(item.trim())) {
-
-                    // update our list
-                    list.add(new Todo(item, false));
-
-                    // clear input, remove focus, and hide keyboard
-                    addInput.setText("");
-                    findViewById(R.id.add_todo_container).requestFocus();
-                    dismissKeyboard();
-                }
-            }
-        });
+                        // clear input, remove focus, and hide keyboard
+                        addInput.setText("");
+                        findViewById(R.id.add_todo_container).requestFocus();
+                        dismissKeyboard();
+                    }
+                });
 
         // setup the toolbar
         toolbar = (Toolbar) findViewById(R.id.toolbar);
