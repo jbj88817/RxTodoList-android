@@ -22,6 +22,7 @@ import rx.Observable;
 import rx.functions.Action1;
 import rx.functions.Func1;
 import rx.functions.Func2;
+import rx.subscriptions.CompositeSubscription;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -37,6 +38,8 @@ public class MainActivity extends AppCompatActivity {
     TodoAdapter adapter;
 
     TodoList list;
+
+    CompositeSubscription subscriptions = new CompositeSubscription();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,31 +69,32 @@ public class MainActivity extends AppCompatActivity {
         // setup adding new items to the list
         addInput = (EditText) findViewById(R.id.add_todo_input);
         findViewById(R.id.add_todo_container).requestFocus(); // ensures the edittext isn't focused when entering the Activity
-        RxView.clicks(findViewById(R.id.btn_add_todo))
-                .map(new Func1<Void, String>() {
-                    @Override
-                    public String call(Void aVoid) {
-                        return addInput.getText().toString();
-                    }
-                })
-                .filter(new Func1<String, Boolean>() {
-                    @Override
-                    public Boolean call(String s) {
-                        return !TextUtils.isEmpty(s.trim());
-                    }
-                })
-                .subscribe(new Action1<String>() {
-                    @Override
-                    public void call(String s) {
-                        // update our list
-                        list.add(new Todo(s, false));
+        subscriptions.add(
+                RxView.clicks(findViewById(R.id.btn_add_todo))
+                        .map(new Func1<Void, String>() {
+                            @Override
+                            public String call(Void aVoid) {
+                                return addInput.getText().toString();
+                            }
+                        })
+                        .filter(new Func1<String, Boolean>() {
+                            @Override
+                            public Boolean call(String s) {
+                                return !TextUtils.isEmpty(s.trim());
+                            }
+                        })
+                        .subscribe(new Action1<String>() {
+                            @Override
+                            public void call(String s) {
+                                // update our list
+                                list.add(new Todo(s, false));
 
-                        // clear input, remove focus, and hide keyboard
-                        addInput.setText("");
-                        findViewById(R.id.add_todo_container).requestFocus();
-                        dismissKeyboard();
-                    }
-                });
+                                // clear input, remove focus, and hide keyboard
+                                addInput.setText("");
+                                findViewById(R.id.add_todo_container).requestFocus();
+                                dismissKeyboard();
+                            }
+                        }));
 
         // setup the toolbar
         toolbar = (Toolbar) findViewById(R.id.toolbar);
@@ -100,23 +104,24 @@ public class MainActivity extends AppCompatActivity {
         spinner = (Spinner) toolbar.findViewById(R.id.spinner);
         spinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, new String[]{"All", "Incomplete", "Completed"}));
 
-        Observable.combineLatest(
-                RxAdapterView.itemSelections(spinner).skip(1),
-                list.asObservable(),
-                new Func2<Integer, TodoList, List<Todo>>() {
-                    @Override
-                    public List<Todo> call(Integer integer, TodoList todoList) {
-                        switch (integer) {
-                            case FilterPositions.INCOMPLETE:
-                                return list.getIncomplete();
-                            case FilterPositions.COMPLETE:
-                                return list.getComplete();
-                            default:
-                                return list.getAll();
+        subscriptions.add(
+                Observable.combineLatest(
+                        RxAdapterView.itemSelections(spinner).skip(1),
+                        list.asObservable(),
+                        new Func2<Integer, TodoList, List<Todo>>() {
+                            @Override
+                            public List<Todo> call(Integer integer, TodoList todoList) {
+                                switch (integer) {
+                                    case FilterPositions.INCOMPLETE:
+                                        return list.getIncomplete();
+                                    case FilterPositions.COMPLETE:
+                                        return list.getComplete();
+                                    default:
+                                        return list.getAll();
+                                }
+                            }
                         }
-                    }
-                }
-        ).subscribe(adapter);
+                ).subscribe(adapter));
 
     }
 
@@ -130,6 +135,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
 
+        subscriptions.unsubscribe();
         SharedPreferences.Editor editor = getSharedPreferences("data", Context.MODE_PRIVATE).edit();
         editor.putString(LIST, list.toString());
         editor.apply();
